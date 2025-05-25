@@ -19,6 +19,19 @@ This is a web-based notepad project mimicking the classic Windows Notepad, with 
 - **简洁的 UI**: 受 Windows 记事本启发，设计了一个简洁且用户友好的界面。
 - **文件保存与加载**: 可以直接在浏览器中打开和保存文件。
 
+## 程序优势 / Advantages
+- **Cross-Platform Compatibility**: No need to install any software; users can simply open the page in their browser and start using it, compatible with Windows, macOS, and Linux.
+- **Lightweight Design**: Keeps a simple interface and fast responsiveness, ideal for everyday text editing without unnecessary bloat.
+- **Code Highlighting**: Built-in syntax highlighting for editing code in languages like JavaScript, making it suitable for developers.
+- **Seamless File Operations**: Open, edit, and save files directly in the browser, supporting common text formats like `.txt`.
+- **Font Size Zoom**: Smooth zooming functionality to adjust the font size for a more comfortable reading experience.
+
+- **跨平台兼容性**：无需安装任何软件，用户只需在浏览器中打开页面即可使用，兼容 Windows、macOS 和 Linux 系统。
+- **轻量级设计**：没有复杂的功能，保持了简洁的界面和快速响应，适合日常文本编辑。
+- **代码高亮支持**：内置语法高亮功能，支持 JavaScript 等语言的代码编辑，适合开发者使用。
+- **无缝文件操作**：直接在浏览器中打开、编辑和保存文件，支持常见文本格式。
+- **缩放功能**：提供平滑的字体缩放功能，用户可以根据需要调整字体大小，提高阅读舒适度。
+
 ## 使用 / Usage
 
 1. Clone or download the repository:
