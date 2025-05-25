@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记事本</title>
+    
+<style>
+    /* 缩放面板样式 */
+    .zoom-container {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        background: #ffffff;
+        border: 1px solid #d1d1d1;
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        padding: 12px;
+        min-width: 250px;
+        display: none;
+        z-index: 1500;
+    }
+
+    .zoom-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* 蓝色进度条 */
+    .zoom-slider {
+        width: 100%;
+        margin: 0;
+        -webkit-appearance: none;
+        background-color: #0078d4;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    .zoom-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #0078d4;
+        border-radius: 50%;
+    }
+
+    .zoom-button {
+        padding: 6px 12px;
+        background: #005fb8;
+        color: white;
+        border: none;
+        border-radius: 20px; /* 圆角按钮 */
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .zoom-button:hover {
+        background: #004a93;
+    }
+
+    /* 百分比显示 */
+    #zoomPercentage {
+        font-size: 14px;
+        color: #1a1a1a;
+    }
+</style>
+<style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f3f3;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .window {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+
+        .title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 32px;
+            background: #ffffff;
+            padding: 0 16px;
+            border-bottom: 1px solid #e5e5e5;
+            -webkit-app-region: drag;
+        }
+
+        .title-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-icon {
+            width: 16px;
+            height: 16px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23005fb8"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/></svg>') no-repeat center;
+            background-size: contain;
+        }
+
+        .title-text {
+            font-size: 12px;
+            color: #1a1a1a;
+            font-weight: 400;
+        }
+
+        .window-controls {
+            display: flex;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-control {
+            width: 46px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 10px;
+            color: #1a1a1a;
+            transition: background-color 0.1s ease;
+        }
+
+        .window-control:hover {
+            background-color: #e5e5e5;
+        }
+
+        .window-control.close:hover {
+            background-color: #c42b1c;
+            color: white;
+        }
+
+        .menu-bar {
+            display: flex;
+            background: #fafafa;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 4px 8px;
+            min-height: 32px;
+        }
+
+        .menu-item {
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #1a1a1a;
+            cursor: pointer;
+            border-radius: 4px;
+            position: relative;
+            background: transparent;
+            border: none;
+            font-family: inherit;
+        }
+
+        .menu-item:hover {
+            background-color: #e5e5e5;
+        }
+
+        .menu-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #ffffff;
+            border: 1px solid #d1d1d1;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+            padding: 4px 0;
+        }
+
+        .menu-dropdown.show {
+            display: block;
+        }
+
+        .menu-dropdown-item {
+            padding: 8px 16px;
+            font-size: 12px;
+            color: #1a1a1a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-dropdown-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .menu-dropdown-item.disabled {
+            color: #8a8a8a;
+            cursor: default;
+        }
+
+        .menu-dropdown-item.disabled:hover {
+            background-color: transparent;
+        }
+
+        .menu-separator {
+            height: 1px;
+            background-color: #e5e5e5;
+            margin: 4px 0;
+        }
+
+        .shortcut {
+            font-size: 11px;
+            color: #8a8a8a;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            display: none;
+            background: #fafafa;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 8px 16px;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar.show {
+            display: flex;
+        }
+
+        .toolbar button {
+            padding: 4px 8px;
+            background: #ffffff;
+            border: 1px solid #d1d1d1;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .toolbar button:hover {
+            background: #e5e5e5;
+        }
+
+        .text-editor {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            outline: none;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            resize: none;
+            background: #ffffff;
+            color: #1a1a1a;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 24px;
+            background: #fafafa;
+            border-top: 1px solid #e5e5e5;
+            padding: 0 16px;
+            font-size: 11px;
+            color: #8a8a8a;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            min-width: 400px;
+            max-width: 600px;
+        }
+
+        .save-dialog {
+            min-width: 580px;
+            max-width: 580px;
+            padding: 0;
+            border-radius: 6px;
+        }
+
+        .save-dialog-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+        }
+
+        .save-dialog-title {
+            font-size: 13px;
+            font-weight: 400;
+            color: #1a1a1a;
+        }
+
+        .save-dialog-body {
+            padding: 16px;
+        }
+
+        .path-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 6px 8px;
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .path-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23f39c12"><path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>') no-repeat center;
+            background-size: contain;
+        }
+
+        .file-list {
+            height: 200px;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            background: #ffffff;
+            margin-bottom: 12px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background: #e3f2fd;
+        }
+
+        .file-item.selected {
+            background: #0078d4;
+            color: white;
+        }
+
+        .file-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            background-size: contain;
+        }
+
+        .folder-icon {
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23f39c12"><path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>') no-repeat center;
+        }
+
+        .txt-icon {
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%236c757d"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>') no-repeat center;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 1px #0078d4;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            font-size: 12px;
+            background: white;
+            font-family: inherit;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .save-dialog-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 16px;
+            background: #f8f8f8;
+            border-top: 1px solid #e0e0e0;
+            border-bottom-left-radius: 6px;
+            border-bottom-right-radius: 6px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .toolbar-btn {
+            padding: 4px 8px;
+            background: #f0f0f0;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toolbar-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .toolbar-btn.active {
+            background: #0078d4;
+            color: white;
+            border-color: #0078d4;
+        }
+
+        .modal-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1a1a1a;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+            color: #5a5a5a;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d1d1;
+            border-radius: 4px;
+            background: #ffffff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-primary {
+            background: #005fb8;
+            color: white;
+            border-color: #005fb8;
+        }
+
+        .btn:hover {
+            background: #e5e5e5;
+        }
+
+        .btn-primary:hover {
+            background: #004a93;
+        }
+
+        .search-container {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: #ffffff;
+            border: 1px solid #d1d1d1;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            padding: 12px;
+            min-width: 300px;
+            display: none;
+            z-index: 1500;
+        }
+
+        .search-container.show {
+            display: block;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d1d1d1;
+            border-radius: 3px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-btn {
+            padding: 4px 12px;
+            background: #005fb8;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .search-btn:hover {
+            background: #004a93;
+        }
+    </style>
+
+<!-- highlight.js 样式和脚本 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+<script>hljs.highlightAll();</script>
+
+</head>
+<body>
+    <div class="window">
+        <!-- 标题栏 -->
+        <div class="title-bar">
+            <div class="title-bar-left">
+                <div class="app-icon"></div>
+                <span class="title-text" id="titleText">无标题 - 记事本</span>
+            </div>
+            <div class="window-controls">
+                <button class="window-control minimize" onclick="minimizeWindow()">🗕</button>
+                <button class="window-control maximize" onclick="maximizeWindow()">🗗</button>
+                <button class="window-control close" onclick="closeWindow()">🗙</button>
+            </div>
+        </div>
+
+        <!-- 菜单栏 -->
+        <div class="menu-bar">
+            <div class="menu-item" onclick="toggleMenu('fileMenu')">文件(F)
+                <div class="menu-dropdown" id="fileMenu">
+                    <div class="menu-dropdown-item" onclick="newFile()">新建 <span class="shortcut">Ctrl+N</span></div>
+                    <div class="menu-dropdown-item" onclick="openFile()">打开... <span class="shortcut">Ctrl+O</span></div>
+                    <div class="menu-dropdown-item" onclick="saveFile()">保存 <span class="shortcut">Ctrl+S</span></div>
+                    <div class="menu-dropdown-item" onclick="saveAs()">另存为... <span class="shortcut">Ctrl+Shift+S</span></div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-dropdown-item" onclick="pageSetup()">页面设置...</div>
+                    <div class="menu-dropdown-item" onclick="printFile()">打印... <span class="shortcut">Ctrl+P</span></div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-dropdown-item" onclick="closeWindow()">退出</div>
+                </div>
+            </div>
+            <div class="menu-item" onclick="toggleMenu('editMenu')">编辑(E)
+                <div class="menu-dropdown" id="editMenu">
+                    <div class="menu-dropdown-item" onclick="undoAction()">撤销 <span class="shortcut">Ctrl+Z</span></div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-dropdown-item" onclick="cutText()">剪切 <span class="shortcut">Ctrl+X</span></div>
+                    <div class="menu-dropdown-item" onclick="copyText()">复制 <span class="shortcut">Ctrl+C</span></div>
+                    <div class="menu-dropdown-item" onclick="pasteText()">粘贴 <span class="shortcut">Ctrl+V</span></div>
+                    <div class="menu-dropdown-item" onclick="deleteText()">删除 <span class="shortcut">Del</span></div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-dropdown-item" onclick="findText()">查找... <span class="shortcut">Ctrl+F</span></div>
+                    <div class="menu-dropdown-item" onclick="findNext()">查找下一个 <span class="shortcut">F3</span></div>
+                    <div class="menu-dropdown-item" onclick="replaceText()">替换... <span class="shortcut">Ctrl+H</span></div>
+                    <div class="menu-dropdown-item" onclick="goToLine()">转到... <span class="shortcut">Ctrl+G</span></div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-dropdown-item" onclick="selectAll()">全选 <span class="shortcut">Ctrl+A</span></div>
+                    <div class="menu-dropdown-item" onclick="timeDate()">时间/日期 <span class="shortcut">F5</span></div>
+                </div>
+            </div>
+            <div class="menu-item" onclick="toggleMenu('formatMenu')">格式(O)
+                <div class="menu-dropdown" id="formatMenu">
+                    <div class="menu-dropdown-item" onclick="toggleWordWrap()">自动换行</div>
+                    <div class="menu-dropdown-item" onclick="setFont()">字体...</div>
+                </div>
+            </div>
+            <div class="menu-item" onclick="toggleMenu('viewMenu')">查看(V)
+                <div class="menu-dropdown" id="viewMenu">
+                    <div class="menu-dropdown-item" onclick="toggleZoom()">缩放</div>
+                    <div class="menu-dropdown-item" onclick="toggleStatusBar()">状态栏</div>
+                </div>
+            </div>
+            <div class="menu-item" onclick="toggleMenu('helpMenu')">帮助(H)
+                <div class="menu-dropdown" id="helpMenu">
+                    <div class="menu-dropdown-item" onclick="viewHelp()">查看帮助</div>
+                    <div class="menu-dropdown-item" onclick="sendFeedback()">发送反馈</div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-dropdown-item" onclick="aboutNotepad()">关于记事本</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑器容器 -->
+        <div class="editor-container">
+<!-- 缩放弹窗 -->
+<div class="modal" id="zoomModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title">调整字体大小</span>
+            <button class="window-control" onclick="closeZoomModal()" style="width: 32px; height: 24px;">✕</button>
+        </div>
+        <div class="modal-body">
+            <label for="zoomSlider">字体大小</label>
+            <input type="range" id="zoomSlider" class="zoom-slider" min="10" max="36" step="1" value="14" oninput="updateFontSize(this.value)">
+            <div class="zoom-options">
+                <button onclick="setZoomLevel(12)">小</button>
+                <button onclick="setZoomLevel(14)">中</button>
+                <button onclick="setZoomLevel(16)">大</button>
+                <button onclick="setZoomLevel(18)">超大</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeZoomModal()">取消</button>
+            <button class="btn btn-primary" onclick="applyZoom()">确认</button>
+        </div>
+    </div>
+</div>
+
+            <textarea class="text-editor" id="textEditor" placeholder="开始输入..." oninput="updateStatus()" onselectionchange="updateStatus()"></textarea>
+<pre id="highlightViewer" class="text-editor" style="display:none; overflow:auto;"><code class="language-javascript" id="highlightCode"></code></pre>
+
+        </div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-left">
+                <span id="lineCol">第 1 行，第 1 列</span>
+            </div>
+            <div class="status-right">
+                <span>Windows (CRLF)</span>
+                <span>UTF-8</span>
+                <span>100%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索框 -->
+    <div class="search-container" id="searchContainer">
+        <input type="text" class="search-input" id="searchInput" placeholder="查找内容">
+        <div class="search-buttons">
+            <button class="search-btn" onclick="searchNext()">查找下一个</button>
+            <button class="search-btn" onclick="searchPrevious()">查找上一个</button>
+            <button class="search-btn" onclick="closeSearch()">关闭</button>
+        </div>
+    </div>
+
+    <!-- 保存对话框 -->
+    <div class="modal" id="saveModal">
+        <div class="modal-content save-dialog">
+            <div class="save-dialog-header">
+                <span class="save-dialog-title">另存为</span>
+                <button class="window-control" onclick="closeSaveDialog()" style="width: 32px; height: 24px;">✕</button>
+            </div>
+            <div class="save-dialog-body">
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" onclick="navigateUp()">↑ 上一级</button>
+                    <button class="toolbar-btn active" onclick="setViewMode('list')">📋 列表</button>
+                    <button class="toolbar-btn" onclick="setViewMode('details')">📊 详细信息</button>
+                </div>
+                
+                <div class="path-bar">
+                    <div class="path-icon"></div>
+                    <span id="currentPath">此电脑 > 文档</span>
+                </div>
+                
+                <div class="file-list" id="fileList">
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>桌面</span>
+                    </div>
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>下载</span>
+                    </div>
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>文档</span>
+                    </div>
+                    <div class="file-item" onclick="selectFile(this, '示例文档.txt')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>示例文档.txt</span>
+                    </div>
+                    <div class="file-item" onclick="selectFile(this, '记录.txt')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>记录.txt</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">文件名(N):</label>
+                    <input type="text" class="form-input" id="saveFileName" value="无标题.txt">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">保存类型(T):</label>
+                        <select class="form-select" id="saveFileType">
+                            <option value="txt">文本文档 (*.txt)</option>
+                            <option value="all">所有文件 (*.*)</option>
+                            <option value="md">Markdown文件 (*.md)</option>
+                            <option value="html">HTML文件 (*.html)</option>
+                            <option value="js">JavaScript文件 (*.js)</option>
+                            <option value="css">CSS文件 (*.css)</option>
+                            <option value="json">JSON文件 (*.json)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">编码(E):</label>
+                        <select class="form-select" id="saveEncoding">
+                            <option value="utf-8">UTF-8</option>
+                            <option value="utf-8-bom">UTF-8 with BOM</option>
+                            <option value="utf-16le">UTF-16 LE</option>
+                            <option value="utf-16be">UTF-16 BE</option>
+                            <option value="ansi">ANSI</option>
+                            <option value="gb2312">GB2312</option>
+                            <option value="big5">Big5</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="save-dialog-footer">
+                <button class="btn" onclick="closeSaveDialog()">取消</button>
+                <button class="btn btn-primary" onclick="confirmSave()">保存(S)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通用模态框 -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">标题</div>
+            <div class="modal-body" id="modalBody">内容</div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmModal()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let isModified = false;
+        let searchIndex = -1;
+        let lastSearchTerm = '';
+        let currentDirectory = '文档';
+        let selectedEncoding = 'utf-8';
+
+        const textEditor = document.getElementById('textEditor');
+        const titleText = document.getElementById('titleText');
+        const statusBar = document.getElementById('statusBar');
+        const modal = document.getElementById('modal');
+        const saveModal = document.getElementById('saveModal');
+        const searchContainer = document.getElementById('searchContainer');
+
+        // 更新标题
+        function updateTitle() {
+            const fileName = currentFile ? currentFile.split('/').pop() : '无标题';
+            const modified = isModified ? '*' : '';
+            titleText.textContent = `${modified}${fileName} - 记事本`;
+        }
+
+        // 更新状态栏
+        function updateStatus() {
+            const text = textEditor.value;
+            const position = textEditor.selectionStart;
+            const lines = text.substring(0, position).split('\n');
+            const line = lines.length;
+            const col = lines[lines.length - 1].length + 1;
+            
+            document.getElementById('lineCol').textContent = `第 ${line} 行，第 ${col} 列`;
+            
+            if (!isModified && text !== '') {
+                isModified = true;
+                updateTitle();
+            }
+        }
+
+        // 菜单操作
+        function toggleMenu(menuId) {
+            const menu = document.getElementById(menuId);
+            const allMenus = document.querySelectorAll('.menu-dropdown');
+            
+            allMenus.forEach(m => {
+                if (m.id !== menuId) {
+                    m.classList.remove('show');
+                }
+            });
+            
+            menu.classList.toggle('show');
+        }
+
+        // 关闭所有菜单
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.menu-item')) {
+                document.querySelectorAll('.menu-dropdown').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        // 文件操作
+        function newFile() {
+            if (isModified) {
+                showModal('记事本', '是否要保存对文件的更改？', () => {
+                    saveFile();
+                    createNewFile();
+                });
+            } else {
+                createNewFile();
+            }
+        }
+
+        function createNewFile() {
+            textEditor.value = '';
+            currentFile = null;
+            isModified = false;
+            updateTitle();
+            updateStatus();
+        }
+
+        function openFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt,.md,.json,.js,.css,.html,.xml';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        textEditor.value = e.target.result;
+                        currentFile = file.name;
+                        isModified = false;
+                        updateTitle();
+                        updateStatus();
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function saveFile() {
+            if (currentFile) {
+                downloadFile(textEditor.value, currentFile);
+                isModified = false;
+                updateTitle();
+            } else {
+                saveAs();
+            }
+        }
+
+        function saveAs() {
+            showSaveDialog();
+        }
+
+        function showSaveDialog() {
+            const fileName = currentFile || '无标题.txt';
+            document.getElementById('saveFileName').value = fileName;
+            document.getElementById('currentPath').textContent = `此电脑 > ${currentDirectory}`;
+            saveModal.classList.add('show');
+        }
+
+        function closeSaveDialog() {
+            saveModal.classList.remove('show');
+        }
+
+        function selectFolder(element) {
+            // 清除之前的选择
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            
+            // 双击进入文件夹
+            element.addEventListener('dblclick', () => {
+                const folderName = element.querySelector('span').textContent;
+                navigateToFolder(folderName);
+            });
+        }
+
+        function selectFile(element, fileName) {
+            // 清除之前的选择
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            
+            // 设置文件名
+            document.getElementById('saveFileName').value = fileName;
+        }
+
+        function navigateToFolder(folderName) {
+            currentDirectory = folderName;
+            document.getElementById('currentPath').textContent = `此电脑 > ${folderName}`;
+            
+            // 更新文件列表（模拟不同文件夹的内容）
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = generateFolderContent(folderName);
+        }
+
+        function navigateUp() {
+            if (currentDirectory !== '此电脑') {
+                currentDirectory = '此电脑';
+                document.getElementById('currentPath').textContent = '此电脑';
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = generateFolderContent('此电脑');
+            }
+        }
+
+        function generateFolderContent(folderName) {
+            const folderContents = {
+                '此电脑': `
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>桌面</span>
+                    </div>
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>下载</span>
+                    </div>
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>文档</span>
+                    </div>
+                    <div class="file-item" onclick="selectFolder(this)">
+                        <div class="file-icon folder-icon"></div>
+                        <span>图片</span>
+                    </div>
+                `,
+                '桌面': `
+                    <div class="file-item" onclick="selectFile(this, '新建文本文档.txt')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>新建文本文档.txt</span>
+                    </div>
+                `,
+                '下载': `
+                    <div class="file-item" onclick="selectFile(this, '下载文件.txt')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>下载文件.txt</span>
+                    </div>
+                `,
+                '文档': `
+                    <div class="file-item" onclick="selectFile(this, '示例文档.txt')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>示例文档.txt</span>
+                    </div>
+                    <div class="file-item" onclick="selectFile(this, '记录.txt')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>记录.txt</span>
+                    </div>
+                `,
+                '图片': `
+                    <div class="file-item" onclick="selectFile(this, '截图.png')">
+                        <div class="file-icon txt-icon"></div>
+                        <span>截图.png</span>
+                    </div>
+                `
+            };
+            
+            return folderContents[folderName] || folderContents['此电脑'];
+        }
+
+        function setViewMode(mode) {
+            document.querySelectorAll('.toolbar-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function confirmSave() {
+            const fileName = document.getElementById('saveFileName').value;
+            const fileType = document.getElementById('saveFileType').value;
+            const encoding = document.getElementById('saveEncoding').value;
+            
+            if (!fileName.trim()) {
+                alert('请输入文件名');
+                return;
+            }
+            
+            selectedEncoding = encoding;
+            
+            // 根据文件类型添加扩展名
+            let finalFileName = fileName;
+            if (fileType !== 'all' && !fileName.includes('.')) {
+                const extensions = {
+                    'txt': '.txt',
+                    'md': '.md',
+                    'html': '.html',
+                    'js': '.js',
+                    'css': '.css',
+                    'json': '.json'
+                };
+                finalFileName += extensions[fileType] || '.txt';
+            }
+            
+            downloadFileWithEncoding(textEditor.value, finalFileName, encoding);
+            currentFile = finalFileName;
+            isModified = false;
+            updateTitle();
+            closeSaveDialog();
+        }
+
+        function downloadFileWithEncoding(content, fileName, encoding) {
+            let blob;
+            
+            switch (encoding) {
+                case 'utf-8':
+                    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                    break;
+                case 'utf-8-bom':
+                    const BOM = '\uFEFF';
+                    blob = new Blob([BOM + content], { type: 'text/plain;charset=utf-8' });
+                    break;
+                case 'utf-16le':
+                    const utf16Array = new Uint16Array(content.length + 1);
+                    utf16Array[0] = 0xFEFF; // BOM for UTF-16LE
+                    for (let i = 0; i < content.length; i++) {
+                        utf16Array[i + 1] = content.charCodeAt(i);
+                    }
+                    blob = new Blob([utf16Array], { type: 'text/plain;charset=utf-16le' });
+                    break;
+                case 'utf-16be':
+                    const utf16BEArray = new Uint16Array(content.length + 1);
+                    utf16BEArray[0] = 0xFFFE; // BOM for UTF-16BE
+                    for (let i = 0; i < content.length; i++) {
+                        const code = content.charCodeAt(i);
+                        utf16BEArray[i + 1] = ((code & 0xFF) << 8) | (code >> 8);
+                    }
+                    blob = new Blob([utf16BEArray], { type: 'text/plain;charset=utf-16be' });
+                    break;
+                default:
+                    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            }
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadFile(content, fileName) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 编辑操作
+        function undoAction() {
+            document.execCommand('undo');
+        }
+
+        function cutText() {
+            document.execCommand('cut');
+        }
+
+        function copyText() {
+            document.execCommand('copy');
+        }
+
+        function pasteText() {
+            document.execCommand('paste');
+        }
+
+        function deleteText() {
+            const start = textEditor.selectionStart;
+            const end = textEditor.selectionEnd;
+            if (start !== end) {
+                textEditor.setRangeText('', start, end);
+            }
+        }
+
+        function selectAll() {
+            textEditor.select();
+        }
+
+        function timeDate() {
+            const now = new Date();
+            const timeStr = now.toLocaleString();
+            const start = textEditor.selectionStart;
+            textEditor.setRangeText(timeStr, start, start);
+            textEditor.focus();
+        }
+
+        // 查找功能
+        function findText() {
+            searchContainer.classList.add('show');
+            document.getElementById('searchInput').focus();
+        }
+
+        function closeSearch() {
+            searchContainer.classList.remove('show');
+        }
+
+        function searchNext() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (!searchTerm) return;
+            
+            const text = textEditor.value;
+            const currentPos = textEditor.selectionStart;
+            
+            if (searchTerm !== lastSearchTerm) {
+                searchIndex = -1;
+                lastSearchTerm = searchTerm;
+            }
+            
+            const index = text.indexOf(searchTerm, searchIndex + 1);
+            if (index !== -1) {
+                textEditor.setSelectionRange(index, index + searchTerm.length);
+                textEditor.focus();
+                searchIndex = index;
+            } else {
+                // 从头开始搜索
+                const firstIndex = text.indexOf(searchTerm, 0);
+                if (firstIndex !== -1) {
+                    textEditor.setSelectionRange(firstIndex, firstIndex + searchTerm.length);
+                    textEditor.focus();
+                    searchIndex = firstIndex;
+                }
+            }
+        }
+
+        function searchPrevious() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (!searchTerm) return;
+            
+            const text = textEditor.value;
+            
+            if (searchTerm !== lastSearchTerm) {
+                lastSearchTerm = searchTerm;
+                searchIndex = text.length;
+            }
+            
+            const index = text.lastIndexOf(searchTerm, searchIndex - 1);
+            if (index !== -1) {
+                textEditor.setSelectionRange(index, index + searchTerm.length);
+                textEditor.focus();
+                searchIndex = index;
+            }
+        }
+
+        // 其他功能
+        function toggleWordWrap() {
+            const wrap = textEditor.style.whiteSpace === 'pre-wrap' ? 'pre' : 'pre-wrap';
+            textEditor.style.whiteSpace = wrap;
+        }
+
+        function toggleStatusBar() {
+            statusBar.style.display = statusBar.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        // 窗口控制
+        function minimizeWindow() {
+            showModal('记事本', '最小化功能在浏览器环境中不可用');
+        }
+
+        function maximizeWindow() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        }
+
+        function closeWindow() {
+            if (isModified) {
+                showModal('记事本', '是否要保存对文件的更改？', () => {
+                    saveFile();
+                    window.close();
+                });
+            } else {
+                window.close();
+            }
+        }
+
+        // 模态框
+        function showModal(title, message, onConfirm = null) {
+            document.getElementById('modalHeader').textContent = title;
+            document.getElementById('modalBody').textContent = message;
+            modal.classList.add('show');
+            modal.onConfirm = onConfirm;
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+        }
+
+        function confirmModal() {
+            if (modal.onConfirm) {
+                modal.onConfirm();
+            }
+            closeModal();
+        }
+
+        // 占位符功能
+        function pageSetup() { showModal('页面设置', '页面设置功能'); }
+        function printFile() { showModal('打印', '打印功能'); }
+        function findNext() { searchNext(); }
+        function replaceText() { showModal('替换', '替换功能'); }
+        function goToLine() { showModal('转到', '转到指定行功能'); }
+        function setFont() { showModal('字体', '字体设置功能'); }
+        function toggleZoom() { showModal('缩放', '缩放功能'); }
+        function viewHelp() { showModal('帮助', '记事本帮助文档'); }
+        function sendFeedback() { showModal('反馈', '发送反馈功能'); }
+        function aboutNotepad() { showModal('关于记事本', '记事本 v1.0\n基于Web技术开发的Windows 11风格记事本'); }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey) {
+                switch (e.key) {
+                    case 'n':
+                        e.preventDefault();
+                        newFile();
+                        break;
+                    case 'o':
+                        e.preventDefault();
+                        openFile();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            saveAs();
+                        } else {
+                            saveFile();
+                        }
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        findText();
+                        break;
+                    case 'a':
+                        e.preventDefault();
+                        selectAll();
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        printFile();
+                        break;
+                }
+            } else if (e.key === 'F5') {
+                e.preventDefault();
+                timeDate();
+            } else if (e.key === 'F3') {
+                e.preventDefault();
+                searchNext();
+            } else if (e.key === 'Escape') {
+                closeSearch();
+                closeModal();
+                closeSaveDialog();
+            }
+        });
+
+        
+let highlightMode = false;
+
+function toggleZoom() {
+    const zoomModal = document.getElementById('zoomModal');
+    zoomModal.style.display = zoomModal.style.display === 'none' ? 'flex' : 'none';
+}
+
+function closeZoomModal() {
+    const zoomModal = document.getElementById('zoomModal');
+    zoomModal.style.display = 'none';
+}
+
+function setZoomLevel(size) {
+    const textEditor = document.getElementById('textEditor');
+    textEditor.style.fontSize = size + 'px';
+    document.getElementById('zoomSlider').value = size;  // 更新滑动条
+    updateZoomPercentage(size);  // 更新百分比显示
+}
+
+function updateFontSize(size) {
+    const textEditor = document.getElementById('textEditor');
+    textEditor.style.fontSize = size + 'px';
+    updateZoomPercentage(size);  // 更新百分比显示
+}
+
+function updateZoomPercentage(size) {
+    const percentage = Math.round((size - 10) / 26 * 100);  // 计算百分比
+    document.getElementById('zoomPercentage').textContent = percentage + '%';  // 更新显示
+}
+
+function applyZoom() {
+    const size = document.getElementById('zoomSlider').value;
+    setZoomLevel(size);
+    closeZoomModal();
+}
+
+function toggleHighlightView() {
+    highlightMode = !highlightMode;
+
+    const code = textEditor.value;
+    const viewer = document.getElementById('highlightViewer');
+    const codeElem = document.getElementById('highlightCode');
+
+    if (highlightMode) {
+        textEditor.style.display = 'none';
+        viewer.style.display = 'block';
+
+        // 设置语言类别，可根据需要动态设置
+        codeElem.className = 'language-javascript';
+        codeElem.textContent = code;
+
+        hljs.highlightElement(codeElem);
+    } else {
+        viewer.style.display = 'none';
+        textEditor.style.display = 'block';
+    }
+}
+
+
+        // 初始化
+        updateStatus();
+        updateStatusBarEncoding();
+        textEditor.focus();
+    </script>
+</body>
+</html>
